@@ -5,7 +5,7 @@
 local TeleportService = game:GetService("TeleportService")
 
 -- ❗ Mets ton lien RAW ici (Pastebin / GitHub / ControlC)
-local SCRIPT_URL = "PASTE_YOUR_RAW_URL_HERE"
+local SCRIPT_URL = "https://raw.githubusercontent.com/itzfrenedel/scripts/refs/heads/main/script"
 
 -- Reload après changement de serveur
 queue_on_teleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
