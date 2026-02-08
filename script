@@ -1,62 +1,57 @@
 ----------------------------------------------------------
--- AUTO-RELOAD (B + D)
+-- SETTINGS
 ----------------------------------------------------------
 
 local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+local mouse = player:GetMouse()
 
--- ❗ Mets ton lien RAW ici (Pastebin / GitHub / ControlC)
+-- URLs
 local SCRIPT_URL = "https://raw.githubusercontent.com/itzfrenedel/scripts/refs/heads/main/script"
+local MOTD_URL   = "https://raw.githubusercontent.com/itzfrenedel/scripts/refs/heads/main/motd"
 
--- Reload après changement de serveur
+-- Aimbot config
+local SNAP_RANGE = 100
+local HEAD_OFFSET = Vector3.new(0, 0.5, 0)
+
+local isSnapping = false
+local targetHead = nil
+local WToggle = false
+
+----------------------------------------------------------
+-- AUTO-RELOAD
+----------------------------------------------------------
+
 queue_on_teleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
 
--- Reload après changement de place (D)
 TeleportService.LocalPlayerArrivedFromTeleport:Connect(function()
     loadstring(game:HttpGet(SCRIPT_URL))()
 end)
 
 ----------------------------------------------------------
--- INFINITE YIELD (optionnel)
+-- INFINITE YIELD
 ----------------------------------------------------------
-loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-FE-Script-74834"))()
-
-----------------------------------------------------------
--- AIMBOT + UI (ANCIEN GUI)
-----------------------------------------------------------
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
-local mouse = player:GetMouse()
-local camera = workspace.CurrentCamera
-
-local SNAP_RANGE = 100
-local SNAP_SPEED = 0.7
-local HEAD_OFFSET = Vector3.new(0, 0.5, 0)
-
-local isSnapping = false
-local targetHead = nil
+pcall(function()
+    loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-FE-Script-74834"))()
+end)
 
 ----------------------------------------------------------
--- AIMBOT FUNCTIONS
+-- AIMBOT FUNCTIONS OPTIMISÉES
 ----------------------------------------------------------
-
-local function isEnemy(other)
-	return other ~= player and other.Parent == Players
-end
 
 local function findNearestEnemy()
 	local best, bestDist = nil, SNAP_RANGE
 
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if isEnemy(plr) and plr.Character and plr.Character:FindFirstChild("Head") then
+	for _,plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
 			local head = plr.Character.Head
 			local screenPos = camera:WorldToScreenPoint(head.Position)
-			local dist = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+			local dist = (Vector2.new(mouse.X,mouse.Y) - Vector2.new(screenPos.X,screenPos.Y)).Magnitude
 
 			if dist < bestDist then
 				bestDist = dist
@@ -68,28 +63,32 @@ local function findNearestEnemy()
 	return best
 end
 
-local function snapToHead(head)
-	if head then
-		local pos = head.Position + HEAD_OFFSET
+local function snapToHead()
+	if targetHead and targetHead.Parent then
+		local pos = targetHead.Position + HEAD_OFFSET
 		local dir = (pos - camera.CFrame.Position).Unit
 		camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
 	end
 end
 
-----------------------------------------------------------
--- AIMBOT INPUT
-----------------------------------------------------------
-
-UserInputService.InputBegan:Connect(function(input, gp)
+UIS.InputBegan:Connect(function(input,gp)
 	if gp then return end
 
+	-- Right click aimbot
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		targetHead = findNearestEnemy()
 		isSnapping = targetHead ~= nil
 	end
+
+	-- Toggle W
+	if input.KeyCode == Enum.KeyCode.W then
+		WToggle = not WToggle
+		targetHead = WToggle and findNearestEnemy() or nil
+		isSnapping = targetHead ~= nil
+	end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
+UIS.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isSnapping = false
 		targetHead = nil
@@ -97,276 +96,147 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 RunService.RenderStepped:Connect(function()
-	if isSnapping and targetHead and targetHead.Parent then
-		snapToHead(targetHead)
+	if isSnapping then
+		snapToHead()
 	end
 end)
 
 ----------------------------------------------------------
--- W TOGGLE AIMBOT (comme demandé)
+-- DRAGGING FUNCTION
 ----------------------------------------------------------
 
-local WToggle = false
+local function makeDraggable(frame, dragHandle)
+	local dragging = false
+	local dragStart
+	local startPos
 
-UserInputService.InputBegan:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.W then
-		WToggle = not WToggle
-
-		if WToggle then
-			targetHead = findNearestEnemy()
-			isSnapping = targetHead ~= nil
-		else
-			isSnapping = false
-			targetHead = nil
+	dragHandle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
 		end
-	end
-end)
-
-----------------------------------------------------------
--- ANCIEN GUI (COMPLET, SANS MOT DE PASSE)
-----------------------------------------------------------
-
-local function createMainScreen()
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "MainScreen"
-	screenGui.ResetOnSpawn = false
-	screenGui.Parent = playerGui
-
-	-- Fond transparent comme après le mot de passe
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.new(1,0,1,0)
-	bg.BackgroundTransparency = 1
-	bg.Parent = screenGui
-
-	-- Panneau principal
-	local panel = Instance.new("Frame")
-	panel.Name = "MainPanel"
-	panel.Size = UDim2.new(0, 500, 0, 450)
-	panel.Position = UDim2.new(0.5, -250, 0.5, -225)
-	panel.BackgroundColor3 = Color3.fromRGB(25,25,35)
-	panel.BorderSizePixel = 2
-	panel.BorderColor3 = Color3.fromRGB(50,150,255)
-	panel.Parent = bg
-
-	------------------------------------------------------
-	-- HEADER
-	------------------------------------------------------
-	local header = Instance.new("Frame", panel)
-	header.Size = UDim2.new(1,0,0,50)
-	header.BackgroundColor3 = Color3.fromRGB(30,30,45)
-
-	local title = Instance.new("TextLabel", header)
-	title.Size = UDim2.new(1,-20,1,0)
-	title.Position = UDim2.new(0,10,0,0)
-	title.BackgroundTransparency = 1
-	title.Text = "Aimbot by guxtraae v1.0"
-	title.TextColor3 = Color3.fromRGB(50,150,255)
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 18
-	title.TextXAlignment = Enum.TextXAlignment.Left
-
-	------------------------------------------------------
-	-- TABS BAR
-	------------------------------------------------------
-	local tabBar = Instance.new("Frame", panel)
-	tabBar.Size = UDim2.new(1,0,0,40)
-	tabBar.Position = UDim2.new(0,0,0,50)
-	tabBar.BackgroundColor3 = Color3.fromRGB(20,20,30)
-
-	local tabs = {}
-	local tabNames = {"Aimbot","Eyes","Config","Sobre"}
-
-	for i,name in ipairs(tabNames) do
-		local btn = Instance.new("TextButton", tabBar)
-		btn.Name = name.."Tab"
-		btn.Size = UDim2.new(0,120,1,0)
-		btn.Position = UDim2.new(0,(i-1)*120,0,0)
-		btn.Text = name
-		btn.TextSize = 12
-		btn.Font = Enum.Font.GothamBold
-		btn.TextColor3 = Color3.new(1,1,1)
-		btn.BackgroundColor3 = (i == 1) and Color3.fromRGB(50,150,255) or Color3.fromRGB(20,20,30)
-
-		tabs[name] = btn
-	end
-
-	------------------------------------------------------
-	-- CONTENT AREA
-	------------------------------------------------------
-
-	local content = Instance.new("Frame", panel)
-	content.Size = UDim2.new(1,0,1,-90)
-	content.Position = UDim2.new(0,0,0,90)
-	content.BackgroundTransparency = 1
-
-	------------------------------------------------------
-	-- AIMBOT TAB
-	------------------------------------------------------
-	local aimbotTab = Instance.new("Frame", content)
-	aimbotTab.Name = "AimbotContent"
-	aimbotTab.Size = UDim2.new(1,0,1,0)
-	aimbotTab.BackgroundTransparency = 1
-	aimbotTab.Visible = true
-
-	local aimbotLabel = Instance.new("TextLabel", aimbotTab)
-	aimbotLabel.Position = UDim2.new(0,10,0,20)
-	aimbotLabel.Size = UDim2.new(1,-20,0,40)
-	aimbotLabel.BackgroundTransparency = 1
-	aimbotLabel.Text = "AIMBOT"
-	aimbotLabel.TextColor3 = Color3.fromRGB(50,150,255)
-	aimbotLabel.Font = Enum.Font.GothamBold
-	aimbotLabel.TextSize = 16
-	aimbotLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local aimbotToggle = Instance.new("TextButton", aimbotTab)
-	aimbotToggle.Name = "AimbotToggle"
-	aimbotToggle.Size = UDim2.new(0,60,0,30)
-	aimbotToggle.Position = UDim2.new(1,-80,0,20)
-	aimbotToggle.Text = "OFF"
-	aimbotToggle.Font = Enum.Font.GothamBold
-	aimbotToggle.TextSize = 12
-	aimbotToggle.TextColor3 = Color3.new(1,1,1)
-	aimbotToggle.BackgroundColor3 = Color3.fromRGB(100,100,100)
-
-	local aimbotStatus = Instance.new("TextLabel", aimbotTab)
-	aimbotStatus.Position = UDim2.new(0,10,0,70)
-	aimbotStatus.Size = UDim2.new(1,-20,0,120)
-	aimbotStatus.BackgroundTransparency = 1
-	aimbotStatus.Font = Enum.Font.Gotham
-	aimbotStatus.TextSize = 12
-	aimbotStatus.TextColor3 = Color3.fromRGB(150,150,150)
-	aimbotStatus.TextXAlignment = Enum.TextXAlignment.Left
-	aimbotStatus.TextYAlignment = Enum.TextYAlignment.Top
-	aimbotStatus.Text =
-		"Status: DESATIVADO\n\nBotão direito do mouse: Aim no inimigo\n\nRaio: 100 studs\nSnap Speed: 0.7\n\nX = ouvrir/fermer menu"
-
-	------------------------------------------------------
-	-- EYES TAB
-	------------------------------------------------------
-
-	local eyesTab = Instance.new("Frame", content)
-	eyesTab.Name = "EyesContent"
-	eyesTab.Size = UDim2.new(1,0,1,0)
-	eyesTab.Visible = false
-	eyesTab.BackgroundTransparency = 1
-
-	local eyesLabel = Instance.new("TextLabel", eyesTab)
-	eyesLabel.Position = UDim2.new(0,10,0,20)
-	eyesLabel.Size = UDim2.new(1,-20,0,40)
-	eyesLabel.Text = "ESP / EYES"
-	eyesLabel.Font = Enum.Font.GothamBold
-	eyesLabel.TextSize = 16
-	eyesLabel.BackgroundTransparency = 1
-	eyesLabel.TextColor3 = Color3.fromRGB(50,150,255)
-	eyesLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	------------------------------------------------------
-	-- CONFIG TAB
-	------------------------------------------------------
-
-	local configTab = Instance.new("Frame", content)
-	configTab.Name = "ConfigContent"
-	configTab.Size = UDim2.new(1,0,1,0)
-	configTab.Visible = false
-	configTab.BackgroundTransparency = 1
-
-	local configLabel = Instance.new("TextLabel", configTab)
-	configLabel.Position = UDim2.new(0,10,0,20)
-	configLabel.Size = UDim2.new(1,-20,1,-20)
-	configLabel.BackgroundTransparency = 1
-	configLabel.TextColor3 = Color3.fromRGB(150,150,150)
-	configLabel.Font = Enum.Font.Gotham
-	configLabel.TextSize = 13
-	configLabel.TextXAlignment = Enum.TextXAlignment.Left
-	configLabel.TextYAlignment = Enum.TextYAlignment.Top
-	configLabel.Text =
-		"CONFIGURAÇÕES\n\nRaio = 100\nSnap Speed = 0.7\nHead Offset = 0.5\n\nVersion 1.0"
-
-	------------------------------------------------------
-	-- SOBRE TAB
-	------------------------------------------------------
-
-	local aboutTab = Instance.new("Frame", content)
-	aboutTab.Name = "AboutContent"
-	aboutTab.Size = UDim2.new(1,0,1,0)
-	aboutTab.Visible = false
-	aboutTab.BackgroundTransparency = 1
-
-	local aboutLabel = Instance.new("TextLabel", aboutTab)
-	aboutLabel.Position = UDim2.new(0,10,0,20)
-	aboutLabel.Size = UDim2.new(1,-20,1,-20)
-	aboutLabel.BackgroundTransparency = 1
-	aboutLabel.TextColor3 = Color3.fromRGB(150,150,150)
-	aboutLabel.Font = Enum.Font.Gotham
-	aboutLabel.TextSize = 13
-	aboutLabel.TextXAlignment = Enum.TextXAlignment.Left
-	aboutLabel.TextYAlignment = Enum.TextYAlignment.Top
-	aboutLabel.Text =
-		"Aimbot by guxtraae v1.0\n\nScript avançado Roblox\nDéveloppé ❤️\nJoin Discord: https://discord.gg/YKRPzamB"
-
-	------------------------------------------------------
-	-- TABS LOGIC
-	------------------------------------------------------
-
-	local tabFrames = {
-		Aimbot = aimbotTab,
-		Eyes = eyesTab,
-		Config = configTab,
-		Sobre = aboutTab
-	}
-
-	for name, button in pairs(tabs) do
-		button.MouseButton1Click:Connect(function()
-			for _,other in pairs(tabs) do
-				other.BackgroundColor3 = Color3.fromRGB(20,20,30)
-			end
-			button.BackgroundColor3 = Color3.fromRGB(50,150,255)
-
-			for _,frame in pairs(tabFrames) do
-				frame.Visible = false
-			end
-
-			tabFrames[name].Visible = true
-		end)
-	end
-
-	------------------------------------------------------
-	-- AIMBOT BUTTON LOGIC
-	------------------------------------------------------
-
-	local aimbotEnabled = false
-
-	aimbotToggle.MouseButton1Click:Connect(function()
-		aimbotEnabled = not aimbotEnabled
-
-		aimbotToggle.BackgroundColor3 =
-			aimbotEnabled and Color3.fromRGB(50,150,255) or Color3.fromRGB(100,100,100)
-
-		aimbotToggle.Text = aimbotEnabled and "ON" or "OFF"
-
-		aimbotStatus.Text = aimbotEnabled
-			and "Status: ATIVADO ✓\n\nBotão direito ativa a mira"
-			or  "Status: DESATIVADO\n\nBotão droit = aim\nRange = 100\nSnap=0.7"
 	end)
 
-	------------------------------------------------------
-	-- RETURN UI OBJECTS
-	------------------------------------------------------
+	dragHandle.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
 
-	return screenGui, panel
+	UIS.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
 end
 
 ----------------------------------------------------------
--- MAIN
+-- LIQUID GLASS STYLING (semi-transparent glass)
 ----------------------------------------------------------
 
-local mainUI, mainPanel = createMainScreen()
+local function applyGlass(frame)
+	frame.BackgroundTransparency = 0.25
+	frame.BackgroundColor3 = Color3.fromRGB(35,35,45)
+	frame.BorderSizePixel = 0
+	local blur = Instance.new("UICorner", frame)
+	blur.CornerRadius = UDim.new(0, 12)
 
--- Toggle UI
-UserInputService.InputBegan:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.X then
-		mainPanel.Visible = not mainPanel.Visible
+	local glass = Instance.new("ImageLabel")
+	glass.Parent = frame
+	glass.Size = UDim2.new(1,0,1,0)
+	glass.BackgroundTransparency = 1
+	glass.Image = "rbxassetid://9419832448" -- effet glass
+	glass.ImageTransparency = 0.45
+end
+
+----------------------------------------------------------
+-- MAIN GUI (LIQUID GLASS + DRAGGABLE)
+----------------------------------------------------------
+
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.ResetOnSpawn = false
+screenGui.Name = "LiquidAimbot"
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0,500,0,430)
+mainFrame.Position = UDim2.new(0.5,-250,0.5,-200)
+
+applyGlass(mainFrame)
+
+-- Header
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1,0,0,40)
+header.BackgroundTransparency = 1
+
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(1,0,1,0)
+title.BackgroundTransparency = 1
+title.Text = "Liquid Glass Aimbot"
+title.TextColor3 = Color3.fromRGB(120,170,255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+
+makeDraggable(mainFrame, header)
+
+----------------------------------------------------------
+-- MOTD WINDOW
+----------------------------------------------------------
+
+local motdGui = Instance.new("Frame", screenGui)
+motdGui.Size = UDim2.new(0,400,0,250)
+motdGui.Position = UDim2.new(0.5,-200,0.2,0)
+
+applyGlass(motdGui)
+
+local motdClose = Instance.new("TextButton", motdGui)
+motdClose.Size = UDim2.new(0,30,0,30)
+motdClose.Position = UDim2.new(1,-35,0,5)
+motdClose.Text = "X"
+motdClose.TextColor3 = Color3.new(1,0.4,0.4)
+motdClose.BackgroundTransparency = 1
+motdClose.Font = Enum.Font.GothamBold
+motdClose.TextSize = 18
+
+motdClose.MouseButton1Click:Connect(function()
+	motdGui.Visible = false
+end)
+
+local motdText = Instance.new("TextLabel", motdGui)
+motdText.Size = UDim2.new(1,-20,1,-40)
+motdText.Position = UDim2.new(0,10,0,35)
+motdText.TextWrapped = true
+motdText.BackgroundTransparency = 1
+motdText.TextColor3 = Color3.fromRGB(230,230,230)
+motdText.Font = Enum.Font.Gotham
+motdText.TextSize = 14
+motdText.Text = "Loading..."
+
+makeDraggable(motdGui, motdGui)
+
+task.spawn(function()
+	local success, data = pcall(function()
+		return game:HttpGet(MOTD_URL)
+	end)
+	if success then
+		motdText.Text = data
+	else
+		motdText.Text = "Erreur de chargement du MOTD."
 	end
 end)
 
-print("Aimbot carregado (Ancien GUI + W Toggle + Reload)") 
+----------------------------------------------------------
+-- TOGGLE UI (X)
+----------------------------------------------------------
+
+UIS.InputBegan:Connect(function(i)
+	if i.KeyCode == Enum.KeyCode.X then
+		mainFrame.Visible = not mainFrame.Visible
+	end
+end)
+
+print("Liquid Glass Aimbot + MOTD loaded.")
