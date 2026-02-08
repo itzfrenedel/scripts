@@ -4,13 +4,10 @@
 
 local TeleportService = game:GetService("TeleportService")
 
--- ❗ Mets ton lien RAW ici (Pastebin / GitHub / ControlC)
 local SCRIPT_URL = "https://raw.githubusercontent.com/itzfrenedel/scripts/refs/heads/main/script"
 
--- Reload après changement de serveur
 queue_on_teleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
 
--- Reload après changement de place (D)
 TeleportService.LocalPlayerArrivedFromTeleport:Connect(function()
     loadstring(game:HttpGet(SCRIPT_URL))()
 end)
@@ -21,7 +18,7 @@ end)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-FE-Script-74834"))()
 
 ----------------------------------------------------------
--- AIMBOT + UI (ANCIEN GUI)
+-- AIMBOT + UI
 ----------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -35,7 +32,6 @@ local mouse = player:GetMouse()
 local camera = workspace.CurrentCamera
 
 local SNAP_RANGE = 100
-local SNAP_SPEED = 0.7
 local HEAD_OFFSET = Vector3.new(0, 0.5, 0)
 
 local isSnapping = false
@@ -103,7 +99,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ----------------------------------------------------------
--- W TOGGLE AIMBOT (comme demandé)
+-- W TOGGLE AIMBOT
 ----------------------------------------------------------
 
 local WToggle = false
@@ -123,37 +119,88 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 ----------------------------------------------------------
--- ANCIEN GUI (COMPLET, SANS MOT DE PASSE)
+-- GUI COMPLET / MODERNE / DRAGGABLE
 ----------------------------------------------------------
 
 local function createMainScreen()
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "MainScreen"
-	screenGui.ResetOnSpawn = false
-	screenGui.Parent = playerGui
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "MainScreen"
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
 
-	-- Fond transparent comme après le mot de passe
-	local bg = Instance.new("Frame")
+	-- Background
+	local bg = Instance.new("Frame", gui)
 	bg.Size = UDim2.new(1,0,1,0)
 	bg.BackgroundTransparency = 1
-	bg.Parent = screenGui
 
-	-- Panneau principal
-	local panel = Instance.new("Frame")
+	------------------------------------------------------
+	-- PANEL PRINCIPAL
+	------------------------------------------------------
+	local panel = Instance.new("Frame", bg)
 	panel.Name = "MainPanel"
 	panel.Size = UDim2.new(0, 500, 0, 450)
-	panel.Position = UDim2.new(0.5, -250, 0.5, -225)
+	panel.Position = UDim2.new(0.5, -250, 0.45, -225)
 	panel.BackgroundColor3 = Color3.fromRGB(25,25,35)
-	panel.BorderSizePixel = 2
-	panel.BorderColor3 = Color3.fromRGB(50,150,255)
-	panel.Parent = bg
+	panel.BorderSizePixel = 0
+
+	local corner = Instance.new("UICorner", panel)
+	corner.CornerRadius = UDim.new(0, 12)
+
+	-- Ombre
+	local shadow = Instance.new("ImageLabel", panel)
+	shadow.AnchorPoint = Vector2.new(0.5,0.5)
+	shadow.Position = UDim2.new(0.5,0,0.5,0)
+	shadow.Size = UDim2.new(1,60,1,60)
+	shadow.Image = "rbxassetid://6014261993"
+	shadow.ImageTransparency = 0.45
+	shadow.BackgroundTransparency = 1
+	shadow.ZIndex = 0
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(30,30,70,70)
+
+	------------------------------------------------------
+	-- DRAG SYSTEM
+	------------------------------------------------------
+
+	local dragging
+	local dragStart
+	local startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		panel.Position =
+			UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+
+	panel.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = panel.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+
+	panel.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			if dragging then update(input) end
+		end
+	end)
 
 	------------------------------------------------------
 	-- HEADER
 	------------------------------------------------------
+
 	local header = Instance.new("Frame", panel)
 	header.Size = UDim2.new(1,0,0,50)
 	header.BackgroundColor3 = Color3.fromRGB(30,30,45)
+
+	local hc = Instance.new("UICorner", header)
+	hc.CornerRadius = UDim.new(0,12)
 
 	local title = Instance.new("TextLabel", header)
 	title.Size = UDim2.new(1,-20,1,0)
@@ -166,8 +213,9 @@ local function createMainScreen()
 	title.TextXAlignment = Enum.TextXAlignment.Left
 
 	------------------------------------------------------
-	-- TABS BAR
+	-- TABS
 	------------------------------------------------------
+
 	local tabBar = Instance.new("Frame", panel)
 	tabBar.Size = UDim2.new(1,0,0,40)
 	tabBar.Position = UDim2.new(0,0,0,50)
@@ -177,21 +225,24 @@ local function createMainScreen()
 	local tabNames = {"Aimbot","Eyes","Config","Sobre"}
 
 	for i,name in ipairs(tabNames) do
-		local btn = Instance.new("TextButton", tabBar)
-		btn.Name = name.."Tab"
-		btn.Size = UDim2.new(0,120,1,0)
-		btn.Position = UDim2.new(0,(i-1)*120,0,0)
-		btn.Text = name
-		btn.TextSize = 12
-		btn.Font = Enum.Font.GothamBold
-		btn.TextColor3 = Color3.new(1,1,1)
-		btn.BackgroundColor3 = (i == 1) and Color3.fromRGB(50,150,255) or Color3.fromRGB(20,20,30)
+		local b = Instance.new("TextButton", tabBar)
+		b.Name = name.."Tab"
+		b.Size = UDim2.new(0,120,1,0)
+		b.Position = UDim2.new(0,(i-1)*120,0,0)
+		b.Text = name
+		b.TextSize = 13
+		b.Font = Enum.Font.GothamBold
+		b.TextColor3 = Color3.new(1,1,1)
+		b.BackgroundColor3 = (i == 1) and Color3.fromRGB(50,150,255) or Color3.fromRGB(25,25,35)
 
-		tabs[name] = btn
+		local bc = Instance.new("UICorner", b)
+		bc.CornerRadius = UDim.new(0,6)
+
+		tabs[name] = b
 	end
 
 	------------------------------------------------------
-	-- CONTENT AREA
+	-- CONTENT
 	------------------------------------------------------
 
 	local content = Instance.new("Frame", panel)
@@ -202,107 +253,74 @@ local function createMainScreen()
 	------------------------------------------------------
 	-- AIMBOT TAB
 	------------------------------------------------------
+
 	local aimbotTab = Instance.new("Frame", content)
-	aimbotTab.Name = "AimbotContent"
 	aimbotTab.Size = UDim2.new(1,0,1,0)
 	aimbotTab.BackgroundTransparency = 1
 	aimbotTab.Visible = true
 
-	local aimbotLabel = Instance.new("TextLabel", aimbotTab)
-	aimbotLabel.Position = UDim2.new(0,10,0,20)
-	aimbotLabel.Size = UDim2.new(1,-20,0,40)
-	aimbotLabel.BackgroundTransparency = 1
-	aimbotLabel.Text = "AIMBOT"
-	aimbotLabel.TextColor3 = Color3.fromRGB(50,150,255)
-	aimbotLabel.Font = Enum.Font.GothamBold
-	aimbotLabel.TextSize = 16
-	aimbotLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local lab = Instance.new("TextLabel", aimbotTab)
+	lab.Position = UDim2.new(0,10,0,20)
+	lab.Size = UDim2.new(1,-20,0,40)
+	lab.Text = "AIMBOT"
+	lab.BackgroundTransparency = 1
+	lab.Font = Enum.Font.GothamBold
+	lab.TextSize = 18
+	lab.TextColor3 = Color3.fromRGB(50,150,255)
+	lab.TextXAlignment = Enum.TextXAlignment.Left
 
-	local aimbotToggle = Instance.new("TextButton", aimbotTab)
-	aimbotToggle.Name = "AimbotToggle"
-	aimbotToggle.Size = UDim2.new(0,60,0,30)
-	aimbotToggle.Position = UDim2.new(1,-80,0,20)
-	aimbotToggle.Text = "OFF"
-	aimbotToggle.Font = Enum.Font.GothamBold
-	aimbotToggle.TextSize = 12
-	aimbotToggle.TextColor3 = Color3.new(1,1,1)
-	aimbotToggle.BackgroundColor3 = Color3.fromRGB(100,100,100)
+	local toggle = Instance.new("TextButton", aimbotTab)
+	toggle.Name = "AimbotToggle"
+	toggle.Size = UDim2.new(0,70,0,34)
+	toggle.Position = UDim2.new(1,-90,0,20)
+	toggle.Text = "OFF"
+	toggle.Font = Enum.Font.GothamBold
+	toggle.TextSize = 14
+	toggle.TextColor3 = Color3.new(1,1,1)
+	toggle.BackgroundColor3 = Color3.fromRGB(100,100,100)
 
-	local aimbotStatus = Instance.new("TextLabel", aimbotTab)
-	aimbotStatus.Position = UDim2.new(0,10,0,70)
-	aimbotStatus.Size = UDim2.new(1,-20,0,120)
-	aimbotStatus.BackgroundTransparency = 1
-	aimbotStatus.Font = Enum.Font.Gotham
-	aimbotStatus.TextSize = 12
-	aimbotStatus.TextColor3 = Color3.fromRGB(150,150,150)
-	aimbotStatus.TextXAlignment = Enum.TextXAlignment.Left
-	aimbotStatus.TextYAlignment = Enum.TextYAlignment.Top
-	aimbotStatus.Text =
-		"Status: DESATIVADO\n\nBotão direito do mouse: Aim no inimigo\n\nRaio: 100 studs\nSnap Speed: 0.7\n\nX = ouvrir/fermer menu"
+	local tc = Instance.new("UICorner", toggle)
+	tc.CornerRadius = UDim.new(0,6)
 
-	------------------------------------------------------
-	-- EYES TAB
-	------------------------------------------------------
-
-	local eyesTab = Instance.new("Frame", content)
-	eyesTab.Name = "EyesContent"
-	eyesTab.Size = UDim2.new(1,0,1,0)
-	eyesTab.Visible = false
-	eyesTab.BackgroundTransparency = 1
-
-	local eyesLabel = Instance.new("TextLabel", eyesTab)
-	eyesLabel.Position = UDim2.new(0,10,0,20)
-	eyesLabel.Size = UDim2.new(1,-20,0,40)
-	eyesLabel.Text = "ESP / EYES"
-	eyesLabel.Font = Enum.Font.GothamBold
-	eyesLabel.TextSize = 16
-	eyesLabel.BackgroundTransparency = 1
-	eyesLabel.TextColor3 = Color3.fromRGB(50,150,255)
-	eyesLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local status = Instance.new("TextLabel", aimbotTab)
+	status.Position = UDim2.new(0,10,0,70)
+	status.Size = UDim2.new(1,-20,0,140)
+	status.BackgroundTransparency = 1
+	status.Font = Enum.Font.Gotham
+	status.TextSize = 13
+	status.TextColor3 = Color3.fromRGB(170,170,170)
+	status.TextXAlignment = Enum.TextXAlignment.Left
+	status.TextYAlignment = Enum.TextYAlignment.Top
+	status.Text = 
+		"Status: DESATIVADO\n\nMouse2 = Aim assist\nW = Toggle rapido\nX = Mostrar/Esconder GUI"
 
 	------------------------------------------------------
-	-- CONFIG TAB
+	-- OTHERS TABS
 	------------------------------------------------------
 
-	local configTab = Instance.new("Frame", content)
-	configTab.Name = "ConfigContent"
-	configTab.Size = UDim2.new(1,0,1,0)
-	configTab.Visible = false
-	configTab.BackgroundTransparency = 1
+	local function newTab(text)
+		local frame = Instance.new("Frame", content)
+		frame.Size = UDim2.new(1,0,1,0)
+		frame.BackgroundTransparency = 1
+		frame.Visible = false
 
-	local configLabel = Instance.new("TextLabel", configTab)
-	configLabel.Position = UDim2.new(0,10,0,20)
-	configLabel.Size = UDim2.new(1,-20,1,-20)
-	configLabel.BackgroundTransparency = 1
-	configLabel.TextColor3 = Color3.fromRGB(150,150,150)
-	configLabel.Font = Enum.Font.Gotham
-	configLabel.TextSize = 13
-	configLabel.TextXAlignment = Enum.TextXAlignment.Left
-	configLabel.TextYAlignment = Enum.TextYAlignment.Top
-	configLabel.Text =
-		"CONFIGURAÇÕES\n\nRaio = 100\nSnap Speed = 0.7\nHead Offset = 0.5\n\nVersion 1.0"
+		local lbl = Instance.new("TextLabel", frame)
+		lbl.Position = UDim2.new(0,10,0,20)
+		lbl.Size = UDim2.new(1,-20,1,-20)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextSize = 14
+		lbl.TextColor3 = Color3.fromRGB(200,200,200)
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextYAlignment = Enum.TextYAlignment.Top
+		lbl.Text = text
 
-	------------------------------------------------------
-	-- SOBRE TAB
-	------------------------------------------------------
+		return frame
+	end
 
-	local aboutTab = Instance.new("Frame", content)
-	aboutTab.Name = "AboutContent"
-	aboutTab.Size = UDim2.new(1,0,1,0)
-	aboutTab.Visible = false
-	aboutTab.BackgroundTransparency = 1
-
-	local aboutLabel = Instance.new("TextLabel", aboutTab)
-	aboutLabel.Position = UDim2.new(0,10,0,20)
-	aboutLabel.Size = UDim2.new(1,-20,1,-20)
-	aboutLabel.BackgroundTransparency = 1
-	aboutLabel.TextColor3 = Color3.fromRGB(150,150,150)
-	aboutLabel.Font = Enum.Font.Gotham
-	aboutLabel.TextSize = 13
-	aboutLabel.TextXAlignment = Enum.TextXAlignment.Left
-	aboutLabel.TextYAlignment = Enum.TextYAlignment.Top
-	aboutLabel.Text =
-		"Aimbot by guxtraae v1.0\n\nScript avançado Roblox\nDéveloppé ❤️\nJoin Discord: https://discord.gg/YKRPzamB"
+	local eyesTab = newTab("ESP / Visualização (placeholder)")
+	local configTab = newTab("Configuração:\nRange = 100\nSnapSpeed = 0.7\nOffset = 0.5")
+	local aboutTab = newTab("Aimbot by guxtraae v1.0\nDiscord: YKRPzamB")
 
 	------------------------------------------------------
 	-- TABS LOGIC
@@ -315,58 +333,46 @@ local function createMainScreen()
 		Sobre = aboutTab
 	}
 
-	for name, button in pairs(tabs) do
-		button.MouseButton1Click:Connect(function()
-			for _,other in pairs(tabs) do
-				other.BackgroundColor3 = Color3.fromRGB(20,20,30)
-			end
-			button.BackgroundColor3 = Color3.fromRGB(50,150,255)
+	for name,btn in pairs(tabs) do
+		btn.MouseButton1Click:Connect(function()
+			for _,b in pairs(tabs) do b.BackgroundColor3 = Color3.fromRGB(25,25,35) end
+			btn.BackgroundColor3 = Color3.fromRGB(50,150,255)
 
-			for _,frame in pairs(tabFrames) do
-				frame.Visible = false
-			end
-
+			for _,frame in pairs(tabFrames) do frame.Visible = false end
 			tabFrames[name].Visible = true
 		end)
 	end
 
 	------------------------------------------------------
-	-- AIMBOT BUTTON LOGIC
+	-- AIMBOT TOGGLE LOGIC
 	------------------------------------------------------
 
-	local aimbotEnabled = false
+	local enabled = false
 
-	aimbotToggle.MouseButton1Click:Connect(function()
-		aimbotEnabled = not aimbotEnabled
+	toggle.MouseButton1Click:Connect(function()
+		enabled = not enabled
 
-		aimbotToggle.BackgroundColor3 =
-			aimbotEnabled and Color3.fromRGB(50,150,255) or Color3.fromRGB(100,100,100)
+		toggle.BackgroundColor3 = enabled and Color3.fromRGB(50,150,255) or Color3.fromRGB(100,100,100)
+		toggle.Text = enabled and "ON" or "OFF"
 
-		aimbotToggle.Text = aimbotEnabled and "ON" or "OFF"
-
-		aimbotStatus.Text = aimbotEnabled
-			and "Status: ATIVADO ✓\n\nBotão direito ativa a mira"
-			or  "Status: DESATIVADO\n\nBotão droit = aim\nRange = 100\nSnap=0.7"
+		status.Text = enabled
+			and "Status: ATIVADO ✓\n\nMouse2 = Mira assistida"
+			or "Status: DESATIVADO\n\nMouse2 = Aim assist\nW = Toggle"
 	end)
 
-	------------------------------------------------------
-	-- RETURN UI OBJECTS
-	------------------------------------------------------
-
-	return screenGui, panel
+	return gui, panel
 end
 
 ----------------------------------------------------------
 -- MAIN
 ----------------------------------------------------------
 
-local mainUI, mainPanel = createMainScreen()
+local gui, panel = createMainScreen()
 
--- Toggle UI
 UserInputService.InputBegan:Connect(function(i)
 	if i.KeyCode == Enum.KeyCode.X then
-		mainPanel.Visible = not mainPanel.Visible
+		panel.Visible = not panel.Visible
 	end
 end)
 
-print("Aimbot carregado (Ancien GUI + W Toggle + Reload)") 
+print("Aimbot carregado (GUI Moderno + Drag + Reload + W Toggle)")
